@@ -107,7 +107,7 @@ last_line() { printf '%s\n' "$1" | sed -n '$p'; }
 root="$HOME/.cache/tickwork"
 installed="$root/tool"
 tool_layout() { (cd "$installed" && find . | LC_ALL=C sort | tr '\n' ' '); }
-leftovers() { ls -A "$root" | grep -c 'staging\|\.old\|install.lock' || true; }
+leftovers() { ls -A "$root" | grep -c 'staging\|\.old\|\.reap\|install.lock' || true; }
 
 # update <wrapper>: the verb, with stdout and stderr together and the exit status last.
 update() {
@@ -187,6 +187,70 @@ case $out in
     *"The update failed"*) fail "a successful update says it failed" ;;
     *) pass "with no failed-update line" ;;
 esac
+
+# --- install.lock ------------------------------------------------------------
+
+# A stand-in `sleep` that returns at once, counting its calls in sleeps.log. Its
+# first call releases the lock, and any takeover claim, as their holders would.
+mkdir -p -- "$work/lockbin"
+cat >"$work/lockbin/sleep" <<'EOF2'
+#!/bin/sh
+echo >>"$SLEEP_LOG"
+rm -rf -- "$LOCK" "$ROOT"/.reap.*
+EOF2
+# A stand-in `cat` whose first read of the lock's pid, with STALE_PID set, says
+# STALE_PID: a waiter that read a dead holder before another waiter took over.
+cat >"$work/lockbin/cat" <<'EOF2'
+#!/bin/sh
+if [ -n "${STALE_PID:-}" ] && [ "${2:-}" = "$LOCK/pid" ] && [ ! -e "$STALE_READ" ]; then
+    : >"$STALE_READ"
+    echo "$STALE_PID"
+    exit 0
+fi
+exec /bin/cat "$@"
+EOF2
+chmod +x "$work/lockbin/sleep" "$work/lockbin/cat"
+export SLEEP_LOG="$work/sleeps.log" LOCK="$root/install.lock" ROOT="$root"
+export STALE_READ="$work/stale-read"
+sleeps() { wc -l <"$SLEEP_LOG" | tr -d ' '; }
+
+# hold_lock <pid>: the lock as an install running as <pid> leaves it.
+hold_lock() { mkdir -- "$LOCK" && echo "$1" >"$LOCK/pid"; }
+dead_pid() { sh -c 'echo $$'; }
+
+# lock_update: update with the stand-ins, a fresh count and a fresh stale read.
+lock_update() {
+    : >"$SLEEP_LOG"
+    rm -f -- "$STALE_READ"
+    PATH="$work/lockbin:$PATH" update "$installed/bin/tickwork"
+}
+
+hold_lock "$(dead_pid)"
+fourth_main=$(tickwork_commit installed-4)
+out=$(lock_update)
+check "an update behind a holder that has died succeeds" "exit 0" "$(last_line "$out")"
+check "taking the lock over without waiting" "0" "$(sleeps)"
+check "and installs main" "$fourth_main" "$(cat "$installed/revision")"
+check "with nothing left beside it" "0" "$(leftovers)"
+
+# This test's own shell stands in for the live holder that took the lock over.
+hold_lock $$
+fifth_main=$(tickwork_commit installed-5)
+out=$(STALE_PID=$(dead_pid) lock_update)
+check "an update that read a dead holder after another took over succeeds" "exit 0" "$(last_line "$out")"
+check "waiting for the new holder rather than taking its lock" "1" "$(sleeps)"
+check "and installs main" "$fifth_main" "$(cat "$installed/revision")"
+check "with nothing left beside it" "0" "$(leftovers)"
+
+dead=$(dead_pid)
+hold_lock "$dead"
+mkdir -- "$root/.reap.$dead"
+sixth_main=$(tickwork_commit installed-6)
+out=$(lock_update)
+check "an update while another waiter takes a dead lock over succeeds" "exit 0" "$(last_line "$out")"
+check "waiting for that waiter rather than taking over too" "1" "$(sleeps)"
+check "and installs main" "$sixth_main" "$(cat "$installed/revision")"
+check "with nothing left beside it" "0" "$(leftovers)"
 
 if [ "$failures" -gt 0 ]; then
     printf '%s check(s) failed\n' "$failures" >&2

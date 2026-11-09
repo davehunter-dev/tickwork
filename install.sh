@@ -34,6 +34,7 @@ lock=$root/install.lock
 
 held=
 staging=
+reaping=
 
 say() { printf '%s\n' "$*"; }
 fail() {
@@ -42,8 +43,24 @@ fail() {
 }
 
 cleanup() {
+    [ -z "$reaping" ] || rmdir -- "$reaping"
     [ -z "$staging" ] || rm -rf -- "$staging"
     [ -z "$held" ] || rm -rf -- "$lock"
+}
+
+lock_holder() { cat -- "$lock/pid" 2>/dev/null || true; }
+
+# take_over <pid>: removes the lock if <pid>, which has died, still holds it.
+# Waiters that read the same dead holder would otherwise each remove the lock,
+# and a later one would remove the lock an earlier one had just taken. So each
+# first claims .reap.<pid>, which only one can hold, and reads the holder again
+# under it. Fails if another waiter holds the claim.
+take_over() {
+    mkdir -- "$root/.reap.$1" 2>/dev/null || return 1
+    reaping=$root/.reap.$1
+    [ "$(lock_holder)" != "$1" ] || rm -rf -- "$lock"
+    rmdir -- "$reaping"
+    reaping=
 }
 
 # Takes the lock, waiting for whoever holds it. A lock whose holder has died is
@@ -51,9 +68,8 @@ cleanup() {
 acquire() {
     waited=0
     while ! mkdir -- "$lock" 2>/dev/null; do
-        holder=$(cat -- "$lock/pid" 2>/dev/null || true)
-        if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then
-            rm -rf -- "$lock"
+        holder=$(lock_holder)
+        if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null && take_over "$holder"; then
             continue
         fi
         [ "$waited" -lt "$lock_wait_limit" ] \
