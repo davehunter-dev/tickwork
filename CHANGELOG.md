@@ -9,6 +9,10 @@ next tick. A major entry is one a consumer or an account has to act on.
   supervisor, which launches Claude Code only when a board has work, and keeps
   `/loop /next-task` for running it from an interactive session.
 
+- An assignment's `pullRequest.checks` is `red`, not `green`, when the newest
+  run of a check is cancelled, stale or waiting for action, as the merge and
+  restack checks already judged it.
+
 - The README now introduces Tickwork as self-hosted, multi-agent development
   coordinated through GitHub. It explains the native-development motivation,
   macOS and Linux use, agent roles, human approval boundaries, and experience

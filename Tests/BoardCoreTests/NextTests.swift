@@ -157,6 +157,31 @@ struct NextTests {
         #expect(answer.findings.isEmpty)
     }
 
+    @Test(
+        "An assignment's checks are red when the newest run of a check did not pass",
+        arguments: [
+            ("cancelled", "red"), ("stale", "red"), ("action_required", "red"),
+            ("success", "green"),
+        ])
+    func assignmentChecksJudgeTheNewestRun(conclusion: String, checks: String) throws {
+        let board = board([item(7, "Agent Review")])
+        let source = FakeSourceControl()
+        link(pr(31), to: 7, board: board, source: source)
+        let runs = #"""
+            {"check_runs": [
+              {"id": 10, "name": "Required", "status": "completed", "conclusion": "success"},
+              {"id": 20, "name": "Required", "status": "completed", "conclusion": "\#(conclusion)"}
+            ]}
+            """#
+        source.checks["example-org/fixtures@abc123"] = try checkFacts(
+            checkRunsJSON: runs, statusJSON: #"{"total_count": 0, "statuses": []}"#)
+        guard case .assignment(let answer) = run(request(), board, source) else {
+            Issue.record("expected an assignment")
+            return
+        }
+        #expect(answer.pullRequest?.checks == checks)
+    }
+
     @Test("Findings list the conflict, the owner's feedback and the Reviewer's marked findings")
     func findings() throws {
         let board = board([item(7, "In Progress")])
