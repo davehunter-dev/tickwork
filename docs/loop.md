@@ -662,7 +662,9 @@ prints the tool installed before it.
 already `main`. Otherwise it builds `main` with `swift build -c release` into a
 staging directory beside `tool/`, and swaps the finished entry in with two
 renames, since macOS has none that replaces a non-empty directory. A lock whose
-holder has died is taken over. The first build takes about a minute.
+holder has died is taken over, and an install killed between the two renames is
+recovered by the next: before anything else, it puts the previous `tool/` back
+and removes what the dead install left. The first build takes about a minute.
 
 **Updates happen between pieces of work.** A tick updates before it starts, and
 a supervisor before a reconciliation, when it has no child running. A person who

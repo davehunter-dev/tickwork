@@ -9,6 +9,12 @@ next tick. A major entry is one a consumer or an account has to act on.
   supervisor, which launches Claude Code only when a board has work, and keeps
   `/loop /next-task` for running it from an interactive session.
 
+- An install killed between its two renames no longer leaves the account with
+  no `tool/` until someone reinstalls. The next `install.sh`, from the install
+  lines or a launcher, puts the previous tool back, removes the dead install's
+  staging and moved-aside directories, and then installs `main` as usual, so a
+  failed build there still leaves the previous tool working.
+
 - The README now introduces Tickwork as self-hosted, multi-agent development
   coordinated through GitHub. It explains the native-development motivation,
   macOS and Linux use, agent roles, human approval boundaries, and experience
