@@ -13,10 +13,12 @@
 #     install.lock    held while this builds or switches
 #
 # 1. Take install.lock, since a person's update can run beside the supervisor's.
-# 2. Stop if tool/revision is already main.
-# 3. Build main into .staging.<pid>/, whose entry/ alone holds tool/'s layout.
+# 2. Recover from an install killed mid-swap: put its .old.<pid>/ back as tool/
+#    if tool/ is missing, and remove every other .old.* and .staging.*.
+# 3. Stop if tool/revision is already main.
+# 4. Build main into .staging.<pid>/, whose entry/ alone holds tool/'s layout.
 #    A failed build leaves tool/ untouched.
-# 4. Swap entry/ in for tool/ with two renames, since macOS has none that
+# 5. Swap entry/ in for tool/ with two renames, since macOS has none that
 #    replaces a non-empty directory.
 
 set -eu
@@ -65,6 +67,24 @@ acquire() {
     say $$ >"$lock/pid"
 }
 
+# Only the lock's holder makes .old.* and .staging.*, so once it is held, any
+# that exist were left by an install that died.
+recover() {
+    for leftover in "$root"/.old.* "$root"/.staging.*; do
+        [ -e "$leftover" ] || continue
+        case $leftover in
+            "$root"/.old.*)
+                if [ ! -e "$tool" ]; then
+                    mv -- "$leftover" "$tool" || fail "could not restore $tool from $leftover"
+                    say "install.sh: restored $tool, which an interrupted install had moved aside" >&2
+                    continue
+                fi
+                ;;
+        esac
+        rm -rf -- "$leftover"
+    done
+}
+
 main() {
     command -v git >/dev/null || fail "git is not installed"
     command -v swift >/dev/null || fail "swift is not installed"
@@ -74,12 +94,12 @@ main() {
     trap cleanup EXIT
     trap 'exit 130' INT TERM
     acquire
+    recover
 
     [ "$(cat -- "$tool/revision" 2>/dev/null || true)" != "$revision" ] || exit 0
 
     staging=$root/.staging.$$
     old=$root/.old.$$
-    rm -rf -- "$staging" "$old"
     mkdir -p -- "$staging/source" "$staging/entry/bin"
     git -C "$clone" archive "$revision" | tar -x -C "$staging/source" \
         || fail "could not extract $revision"

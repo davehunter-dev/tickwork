@@ -73,6 +73,16 @@ chmod +x "$scratch/release/board" "$scratch/release/check-loop"
 echo "$marker" >>"$BUILD_LOG"
 EOF2
 chmod +x "$work/bin/swift"
+# With INTERRUPT_SWAP set, mv kills the installer that runs it before moving a
+# staged entry into tool/: an install killed between its two renames.
+cat >"$work/bin/mv" <<'EOF2'
+#!/bin/sh
+case ${INTERRUPT_SWAP:-}:${2:-} in
+    1:*/.staging.*/entry) kill -9 "$PPID"; exit 1 ;;
+esac
+exec /bin/mv "$@"
+EOF2
+chmod +x "$work/bin/mv"
 export PATH="$work/bin:$PATH"
 export BUILD_LOG="$work/builds.log"
 : >"$BUILD_LOG"
@@ -187,6 +197,39 @@ case $out in
     *"The update failed"*) fail "a successful update says it failed" ;;
     *) pass "with no failed-update line" ;;
 esac
+
+# --- an install killed between its two renames -----------------------------------
+
+# interrupted <marker>: commits <marker> and kills its install mid-swap. tool/ is
+# gone, so the next attempt is the install lines', through this checkout's wrapper.
+interrupted() {
+    tickwork_commit "$1" >/dev/null
+    out=$(
+        export INTERRUPT_SWAP=1
+        update "$repo_root/bin/tickwork"
+    )
+    check "an install killed mid-swap fails" "exit 1" "$(last_line "$out")"
+    check "leaving no tool/" "absent" "$([ -e "$installed" ] && echo present || echo absent)"
+}
+
+interrupted installed-4
+tickwork_commit broken-2 >/dev/null
+out=$(update "$repo_root/bin/tickwork")
+check "the next attempt, whose build fails, fails" "exit 1" "$(last_line "$out")"
+contains "saying it restored tool/" "restored $installed" "$out"
+check "with the previous tool back" "$third_main" "$(cat "$installed/revision")"
+check "running" "board installed-3: working" "$(sh "$installed/bin/tickwork" working)"
+check "with the entry's layout" "$layout" "$(tool_layout)"
+check "and nothing left beside it" "0" "$(leftovers)"
+
+interrupted installed-5
+fifth_main=$(git -C "$work/tickwork" rev-parse HEAD)
+out=$(update "$repo_root/bin/tickwork")
+check "the next attempt with a sound build succeeds" "exit 0" "$(last_line "$out")"
+check "and completes the install" "$fifth_main" "$(cat "$installed/revision")"
+check "running" "board installed-5: working" "$(sh "$installed/bin/tickwork" working)"
+check "with the entry's layout" "$layout" "$(tool_layout)"
+check "and nothing left beside it" "0" "$(leftovers)"
 
 if [ "$failures" -gt 0 ]; then
     printf '%s check(s) failed\n' "$failures" >&2
