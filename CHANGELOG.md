@@ -5,6 +5,11 @@ next tick. A major entry is one a consumer or an account has to act on.
 
 ## Unreleased
 
+- The README now introduces Tickwork as self-hosted, multi-agent development
+  coordinated through GitHub. It explains the native-development motivation,
+  macOS and Linux use, agent roles, human approval boundaries, and experience
+  across Swift, C++, TypeScript and Next.js projects.
+
 - The tree is ready to publish: the release design document,
   which cited this repository's item numbers, is gone; Tickwork's own
   `loop.json` turns `lockConversations` on; and a fixture that held another
