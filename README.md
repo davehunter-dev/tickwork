@@ -58,8 +58,8 @@ Tickwork works its own public backlog: its root `loop.json` points at its board,
 and its agents work the issues the owner moves into `Ready`. Beyond its own
 development, Tickwork has been used on projects built with Swift, C++,
 TypeScript and Next.js, including native applications and web projects. Its
-public [issues](https://github.com/davehunter-dev/tickwork/issues) and
-[pull requests](https://github.com/davehunter-dev/tickwork/pulls) show the
+public [issues](../../issues) and
+[pull requests](../../pulls) show the
 workflow operating on its own development.
 
 That experience is evidence of how the system is used, not a promise that every
