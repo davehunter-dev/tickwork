@@ -5,6 +5,10 @@ next tick. A major entry is one a consumer or an account has to act on.
 
 ## Unreleased
 
+- The README's "Using it on a project" leads with the `tickwork loop`
+  supervisor, which launches Claude Code only when a board has work, and keeps
+  `/loop /next-task` for running it from an interactive session.
+
 - The README now introduces Tickwork as self-hosted, multi-agent development
   coordinated through GitHub. It explains the native-development motivation,
   macOS and Linux use, agent roles, human approval boundaries, and experience

@@ -118,12 +118,26 @@ board you're willing to have it change.
 A repository adds `loop.json` at its root, a `## Agent loop` section in its
 `AGENTS.md` naming the checks a change must pass, and the one-line skill in
 [`skills/next-task/`](skills/next-task/SKILL.md), at `.agents/skills/next-task/`
-and, for Claude Code, `.claude/skills/next-task/`. Then, in Claude Code:
+and, for Claude Code, `.claude/skills/next-task/`. Then start the supervisor
+from the installed tool, with an absolute path to each clone the agents work in:
+
+    sh ~/.cache/tickwork/tool/bin/tickwork loop "/abs/first path" "/abs/other path"
+
+It watches each repository's board and launches Claude Code, one
+`claude -p "/next-task"` at a time, only when there is work, so an idle board
+costs no model time. It runs in the foreground until stopped.
+[`docs/loop.md`, "Or under a supervisor"](docs/loop.md#or-under-a-supervisor)
+says what to pass it and what it requires, and
+[`docs/supervisor.md`](docs/supervisor.md) is the design.
+
+To run the loop yourself instead, from an interactive Claude Code session in the
+repository:
 
     /loop /next-task
 
-[`docs/loop.md`](docs/loop.md) explains each piece, and the ruleset on `main`
-that keeps merging behind your approval.
+Use one or the other on a login, never both: a login runs one session at a
+time. [`docs/loop.md`](docs/loop.md) explains each piece, and the ruleset on
+`main` that keeps merging behind your approval.
 
 ## Limitations
 
