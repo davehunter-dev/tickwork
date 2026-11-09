@@ -5,6 +5,12 @@ next tick. A major entry is one a consumer or an account has to act on.
 
 ## Unreleased
 
+- Two installs waiting on an `install.lock` whose holder has died can no longer
+  both take it. One that read the dead holder after another had already taken
+  the lock over removed that install's fresh lock and ran beside it. Each waiter
+  now claims `.reap.<pid>` for the dead holder and reads the lock again before
+  removing it, so a lock someone has taken since is left alone.
+
 - The README's "Using it on a project" leads with the `tickwork loop`
   supervisor, which launches Claude Code only when a board has work, and keeps
   `/loop /next-task` for running it from an interactive session.
