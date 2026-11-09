@@ -22,9 +22,20 @@ import Foundation
 /// A pull request, which may live in another repository than the board's issues:
 /// a project may keep its pull requests in a repository of their own.
 struct PullRequestID: Hashable {
-    /// `owner/name`.
+    /// `owner/name`, in whatever case the source wrote it. GitHub matches it
+    /// without case, so equality does too: a `PR:` line typed by hand names the
+    /// same pull request as GitHub's canonical `full_name`.
     let repository: String
     let number: Int
+
+    static func == (left: PullRequestID, right: PullRequestID) -> Bool {
+        left.number == right.number && left.repository.lowercased() == right.repository.lowercased()
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(repository.lowercased())
+        hasher.combine(number)
+    }
 
     /// How a line names it: `#N` in the board's repository, `owner/name#N`
     /// anywhere else.

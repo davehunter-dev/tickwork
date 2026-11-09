@@ -282,10 +282,15 @@ final class GitHubBoard: BoardProvider {
             .compactMap { try linkedPullRequest($0, of: issue) }
     }
 
+    /// Nil for a pull request that isn't there, as for one that doesn't link.
     func linkedPullRequest(_ id: PullRequestID, of issue: Int) throws -> LinkedPullRequest? {
-        try pullRequestLink(
-            issue: issue, pullJSON: run(["api", "repos/\(id.repository)/pulls/\(id.number)"]))?
-            .link
+        let json: String
+        do {
+            json = try run(["api", "repos/\(id.repository)/pulls/\(id.number)"])
+        } catch let error as BoardError where error.isNotFound {
+            return nil
+        }
+        return try pullRequestLink(issue: issue, pullJSON: json)?.link
     }
 
     /// Every page of an issue's timeline, `--slurp`ed for `jsonArray`.

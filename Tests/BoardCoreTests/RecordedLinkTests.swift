@@ -102,8 +102,8 @@ struct RecordedLinkTests {
         #expect(pullReads == 0)
     }
 
-    @Test("finish's check reads the pull request itself, not the issue's timeline")
-    func finishCheckReadsThePullRequest() throws {
+    @Test("A direct read needs only the pull request, not the issue's timeline")
+    func directReadSkipsTheTimeline() throws {
         var calls: [String] = []
         let board = GitHubBoard(configuration: Coordinates.configuration) { arguments in
             let line = arguments.joined(separator: " ")
@@ -113,6 +113,50 @@ struct RecordedLinkTests {
         #expect(try board.linkedPullRequest(Self.home(12), of: 7) != nil)
         #expect(try board.linkedPullRequest(Self.home(12), of: 8) == nil)
         #expect(!calls.contains { $0.contains("/timeline") })
+    }
+
+    @Test("A missing pull request doesn't link, and a failed read still throws")
+    func missingPullRequest() throws {
+        let board = GitHubBoard(configuration: Coordinates.configuration) { arguments in
+            let line = arguments.joined(separator: " ")
+            if line.hasSuffix("pulls/12") { throw BoardError("gh: Not Found (HTTP 404)") }
+            throw BoardError("gh: API rate limit exceeded (HTTP 403)")
+        }
+        #expect(try board.linkedPullRequest(Self.home(12), of: 7) == nil)
+        #expect(throws: BoardError.self) { try board.linkedPullRequest(Self.home(13), of: 7) }
+    }
+
+    @Test("A PR: line in another case names the cross-referenced pull request, unread")
+    func caseInsensitiveRecord() throws {
+        var pullReads = 0
+        let board = GitHubBoard(configuration: Coordinates.configuration) { arguments in
+            let line = arguments.joined(separator: " ")
+            if line.contains("/timeline") {
+                return """
+                    [[{"event": "cross-referenced", "source": {"issue": {"number": 3,
+                    "state": "open", "body": "Closes \(Coordinates.repository)#7.",
+                    "repository": {"full_name": "\(Self.other)"},
+                    "user": {"login": "agent-one"}, "pull_request": {"merged_at": null}}}},
+                    \(Self.comment("PR: \(Self.other.uppercased())#3", by: "agent-one"))]]
+                    """
+            }
+            if line.contains("/pulls/") { pullReads += 1 }
+            return ""
+        }
+        #expect(
+            try board.linkedPullRequests(of: 7).map(\.id)
+                == [PullRequestID(repository: Self.other, number: 3)])
+        #expect(pullReads == 0)
+    }
+
+    @Test("The supervisor skips a recorded pull request that isn't there")
+    func supervisorSkipsMissing() throws {
+        let json = "[" + Self.comment("PR: #12", by: "agent-one") + "]"
+        let watched = try watchedPullRequests(
+            issue: 7, timelineJSON: json, home: Coordinates.repository, agents: ["agent-one"],
+            owner: "example-owner"
+        ) { _ in nil }
+        #expect(watched.isEmpty)
     }
 
     @Test("The supervisor watches an open recorded pull request, with its own updated_at")

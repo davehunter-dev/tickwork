@@ -14,6 +14,9 @@ final class FakeBoard: BoardProvider {
     var events: [Int: [TimelineEvent]] = [:]
     var statusChanges: [Int: [StatusChange]] = [:]
     var linked: [Int: [LinkedPullRequest]] = [:]
+    /// What reading a pull request directly finds, ahead of `linked`: a locked
+    /// issue's pull request, which its timeline doesn't hold.
+    var direct: [PullRequestID: LinkedPullRequest] = [:]
     var blockers: [Int: [Int]] = [:]
     var landings: [Int: BlockerState] = [:]
     var claimed: [ClaimedIssue] = []
@@ -154,7 +157,7 @@ final class FakeBoard: BoardProvider {
     }
 
     func linkedPullRequest(_ id: PullRequestID, of issue: Int) throws -> LinkedPullRequest? {
-        try linkedPullRequests(of: issue).first { $0.id == id }
+        try direct[id] ?? linkedPullRequests(of: issue).first { $0.id == id }
     }
 
     func createIssue(_ draft: IssueDraft) throws -> Int {

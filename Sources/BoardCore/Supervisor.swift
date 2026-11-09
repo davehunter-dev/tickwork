@@ -1091,6 +1091,7 @@ final class Supervisor {
                     let path = "repos/\(id.repository)/pulls/\(id.number)"
                     let response = try github.get(path, etag: nil)
                     noteRate(response)
+                    if response.status == notFoundStatus { return nil }
                     guard response.status == 200 else {
                         throw BoardError("HTTP \(response.status) for \(path)")
                     }
@@ -1600,12 +1601,16 @@ func nextLink(_ header: String?) -> String? {
     return nil
 }
 
+/// The HTTP status of a pull request a `PR:` line names that isn't there.
+private let notFoundStatus = 404
+
 /// The open pull requests the repairs' resolver finds for an issue, each with
 /// the `updated_at` the same timeline carries as its baseline. One only a `PR:`
-/// line records is read with `fetch`, which answers its REST body.
+/// line records is read with `fetch`, which answers its REST body, or nil when
+/// it isn't there.
 func watchedPullRequests(
     issue: Int, timelineJSON json: String, home: String, agents: Set<String>, owner: String,
-    fetch: (PullRequestID) throws -> String
+    fetch: (PullRequestID) throws -> String?
 ) throws
     -> [WatchedPullRequest]
 {
@@ -1627,9 +1632,9 @@ func watchedPullRequests(
     let recorded = try recordedPullRequests(
         timelineJSON: json, home: home, authors: agents.union([owner]))
     for id in recorded where !known.contains(id) {
-        guard
+        guard let json = try fetch(id),
             let read = try pullRequestLink(
-                issue: issue, pullJSON: fetch(id), home: home, agents: agents),
+                issue: issue, pullJSON: json, home: home, agents: agents),
             read.link.open
         else { continue }
         watched.append(WatchedPullRequest(id: read.link.id, updatedAt: read.updatedAt))
