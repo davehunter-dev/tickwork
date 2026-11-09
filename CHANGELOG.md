@@ -10,6 +10,11 @@ next tick. A major entry is one a consumer or an account has to act on.
   macOS and Linux use, agent roles, human approval boundaries, and experience
   across Swift, C++, TypeScript and Next.js projects.
   
+- `.agents/practices.sh` clones and fetches Practices over HTTPS, now that it is
+  public, so a checkout loads it without GitHub SSH credentials. An existing
+  cache's `origin` moves to HTTPS at its next run; the forced fetch of `main`
+  and the fallback to the last fetched `main` are unchanged.
+
 - An issue's pull request is found when the issue is locked. GitHub writes no
   cross-reference onto a locked issue, so with `lockConversations` on,
   `finish --pr` rejected every pull request opened after the lock, and the
