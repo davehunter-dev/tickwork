@@ -188,6 +188,62 @@ case $out in
     *) pass "with no failed-update line" ;;
 esac
 
+# --- install.lock ------------------------------------------------------------
+
+# A stand-in `sleep` that returns at once, so a wait of install.sh's real limit
+# runs in moments. It counts its calls in sleeps.log, and on the call numbered
+# RELEASE_AT, if set, removes the lock as a finishing holder would.
+mkdir -p -- "$work/fastbin"
+cat >"$work/fastbin/sleep" <<'EOF2'
+#!/bin/sh
+echo >>"$SLEEP_LOG"
+[ "${RELEASE_AT:-}" != "$(wc -l <"$SLEEP_LOG" | tr -d ' ')" ] || rm -rf -- "$LOCK"
+EOF2
+chmod +x "$work/fastbin/sleep"
+export SLEEP_LOG="$work/sleeps.log" LOCK="$root/install.lock"
+sleeps() { wc -l <"$SLEEP_LOG" | tr -d ' '; }
+
+# hold_lock <pid>: the lock as an install running as <pid> leaves it.
+hold_lock() { mkdir -- "$LOCK" && echo "$1" >"$LOCK/pid"; }
+
+# fast_update: update, with the stand-in sleep and a fresh count.
+fast_update() {
+    : >"$SLEEP_LOG"
+    PATH="$work/fastbin:$PATH" update "$installed/bin/tickwork"
+}
+
+# This test's own shell stands in for a live holder.
+hold_lock $$
+fourth_main=$(tickwork_commit installed-4)
+out=$(RELEASE_AT=3 fast_update)
+check "an update behind a live holder succeeds once it lets go" "exit 0" "$(last_line "$out")"
+contains "saying what it waits for, and for how long" \
+    "install.sh: waiting up to 300s for process $$, which holds $LOCK" "$out"
+check "waiting no longer than the holder held it" "3" "$(sleeps)"
+check "and installs main" "$fourth_main" "$(cat "$installed/revision")"
+check "with nothing left beside it" "0" "$(leftovers)"
+
+hold_lock $$
+tickwork_commit installed-5 >/dev/null
+out=$(fast_update)
+check "an update behind a holder that never lets go fails" "exit 1" "$(last_line "$out")"
+contains "saying it gave up, and on whom" \
+    "install.sh: gave up after 300s waiting for process $$, which holds $LOCK" "$out"
+check "after 300 seconds" "300" "$(sleeps)"
+check "leaving the holder its lock" "$$" "$(cat "$LOCK/pid")"
+check "and tool/ as it was" "$fourth_main" "$(cat "$installed/revision")"
+rm -rf -- "$LOCK"
+
+hold_lock "$(sh -c 'echo $$')"
+out=$(fast_update)
+check "an update behind a holder that has died succeeds" "exit 0" "$(last_line "$out")"
+case $out in
+    *"waiting up to"*) fail "and says it waits" ;;
+    *) pass "without saying it waits" ;;
+esac
+check "or waiting" "0" "$(sleeps)"
+check "with nothing left beside it" "0" "$(leftovers)"
+
 if [ "$failures" -gt 0 ]; then
     printf '%s check(s) failed\n' "$failures" >&2
     exit 1

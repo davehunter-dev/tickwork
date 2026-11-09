@@ -21,9 +21,11 @@
 
 set -eu
 
-# How long to wait for another install, in seconds. A first build takes about a
-# minute.
-lock_wait_limit=900
+# How long to wait for another install, in seconds. A cold release build takes
+# under a minute; five times that covers a slow or loaded machine, and a holder
+# still busy after it is more likely stuck than building. Every tick updates
+# first, so this also bounds how long a tick can stall behind one.
+lock_wait_limit=300
 
 # Always under HOME, not XDG_CACHE_HOME: the skill line and the account's
 # permission rule name ~/.cache/tickwork.
@@ -56,8 +58,10 @@ acquire() {
             rm -rf -- "$lock"
             continue
         fi
+        [ "$waited" -gt 0 ] \
+            || say "install.sh: waiting up to ${lock_wait_limit}s for process ${holder:-unknown}, which holds $lock" >&2
         [ "$waited" -lt "$lock_wait_limit" ] \
-            || fail "waited ${lock_wait_limit}s for $lock, held by process ${holder:-unknown}"
+            || fail "gave up after ${lock_wait_limit}s waiting for process ${holder:-unknown}, which holds $lock"
         sleep 1
         waited=$((waited + 1))
     done

@@ -9,6 +9,13 @@ next tick. A major entry is one a consumer or an account has to act on.
   supervisor, which launches Claude Code only when a board has work, and keeps
   `/loop /next-task` for running it from an interactive session.
 
+- An install or update waiting on `~/.cache/tickwork/install.lock` says so at
+  once, naming the process that holds it, and gives up after five minutes
+  instead of fifteen. A cold release build takes under a minute, so a holder
+  still busy after five is more likely stuck, and every tick updates first, so
+  the shorter wait bounds how long a tick stalls behind one. Mutual exclusion
+  and the takeover of a lock whose holder has died are unchanged.
+
 - The README now introduces Tickwork as self-hosted, multi-agent development
   coordinated through GitHub. It explains the native-development motivation,
   macOS and Linux use, agent roles, human approval boundaries, and experience
