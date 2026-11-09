@@ -649,7 +649,8 @@ private struct Tick {
                     ref: "\(id.repository)#\(id.number)", branch: merge.branch, head: merge.headSHA,
                     mergeable: merge.mergeable,
                     checks: checks.unfinished
-                        ? "running" : checks.failing.isEmpty ? "green" : "red")
+                        ? "running"
+                        : checks.failing.isEmpty && checks.needsAPerson.isEmpty ? "green" : "red")
             }
             if pick.role != .reviewer {
                 findings += try gatherer.findings(id, merge: merge, checks: checks)
