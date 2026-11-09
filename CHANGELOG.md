@@ -5,6 +5,11 @@ next tick. A major entry is one a consumer or an account has to act on.
 
 ## Unreleased
 
+- The README now introduces Tickwork as self-hosted, multi-agent development
+  coordinated through GitHub. It explains the native-development motivation,
+  macOS and Linux use, agent roles, human approval boundaries, and experience
+  across Swift, C++, TypeScript and Next.js projects.
+  
 - An issue's pull request is found when the issue is locked. GitHub writes no
   cross-reference onto a locked issue, so with `lockConversations` on,
   `finish --pr` rejected every pull request opened after the lock, and the

@@ -1,19 +1,85 @@
 # Tickwork
 
-Tickwork runs a GitHub repository's backlog as an unattended loop of Claude Code
-agents over a GitHub Projects board. Each tick reads the board, takes one role
-(orchestrator, reviewer, engineer or designer), does one thing, such as opening
-a pull request or reviewing one, and records it on the board.
+**Self-hosted, autonomous multi-agent software development, coordinated through
+GitHub.**
 
-**It is** the instructions the agents follow and two small Swift tools, `board`
-and `check-loop`, that do the board's mechanics: choosing and claiming an item,
-moving cards, and recording outcomes. A project describes itself in a
-`loop.json` and in the `## Agent loop` section of its `AGENTS.md`; Tickwork
-names no project.
+Tickwork runs a repository's backlog as an unattended loop of Claude Code
+agents. Designer, engineer and reviewer roles collaborate through GitHub issues,
+pull requests and a Projects board, while orchestration routes work and feedback
+between them. Each tick takes one role, performs one bounded piece of work,
+records the outcome in GitHub and ends.
 
-**It is not** an approver. Nothing merges without what GitHub's rules on `main`
-require, normally your own approving review. The loop never moves work out of
-`Backlog`, so it works only what you have put in `Ready`.
+Roles can be divided between agent accounts or combined on one. Multi-agent
+describes the coordinated responsibilities and handoffs across independent
+sessions; it does not require every role to run at the same time.
+
+## Why self-hosted?
+
+Tickwork grew out of a desire to make autonomous development practical for
+native iOS, macOS and other mobile applications. Native Apple development still
+requires a suitably configured Mac with Xcode and the relevant SDKs, and other
+platforms have their own build environments. Running agents on hardware you
+control puts them beside the tools their projects actually require.
+
+Tickwork also runs on Linux and is used for web development. Its orchestration
+is independent of the application platform: each repository supplies its own
+configuration, engineering instructions and validation requirements. A
+dedicated Mac or Linux machine can supervise one or more repositories without
+occupying a developer's primary computer.
+
+## How it works
+
+The GitHub Projects board is the persistent state shared between sessions:
+
+- **Designers** resolve design issues into decisions documented for approval.
+- **Engineers** implement approved work and turn merged designs into concrete
+  tasks.
+- **Reviewers** judge pull requests against their issues and repository rules,
+  returning findings to the role responsible for fixing them.
+- **Orchestration** handles workflow repairs such as failed checks, merge
+  conflicts and owner feedback, then routes the work back to the right role.
+
+Together, these roles can carry owner-approved work through design,
+implementation, agent review and human review. Tickwork respects issue
+dependencies, can continue with unrelated work while pull requests await
+approval, and optionally supports eligible dependent work through stacked pull
+requests. Its supervisor watches configured repositories and launches Claude
+Code only when there is work to do.
+
+Tickwork itself is the instructions the agents follow and two small Swift tools,
+`board` and `check-loop`, which handle mechanics such as choosing and claiming
+items, moving cards and recording outcomes. A consuming project describes
+itself in `loop.json` and in the `## Agent loop` section of its `AGENTS.md`;
+Tickwork names no project.
+
+## Used in practice
+
+Tickwork works its own public backlog: its root `loop.json` points at its board,
+and its agents work the issues the owner moves into `Ready`. Beyond its own
+development, Tickwork has been used on projects built with Swift, C++,
+TypeScript and Next.js, including native applications and web projects. Its
+public [issues](../../issues) and
+[pull requests](../../pulls) show the
+workflow operating on its own development.
+
+That experience is evidence of how the system is used, not a promise that every
+task can be completed autonomously. Tickwork is best suited to projects with
+clear engineering standards, a maintained backlog and work that can be divided
+into reviewable changes.
+
+## Humans remain in control
+
+Tickwork automates the development workflow, not product ownership. It never
+takes work from `Backlog`; the owner authorizes work by moving it to `Ready`.
+New work discovered or created by agents returns to `Backlog` for triage, and an
+ambiguity that requires an owner's decision moves to `Needs Human`.
+
+Nothing merges unless GitHub's rules on `main` allow it. A typical setup
+requires the owner's approving review. A repository may instead configure an
+agent-approval path, but only explicitly and only where its GitHub rules permit
+it.
+
+**You decide what to build. Tickwork keeps the development moving.**
 
 ## Requirements
 
