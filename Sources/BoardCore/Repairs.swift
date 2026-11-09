@@ -224,6 +224,14 @@ func repairs(
     }
 
     let back = workflow.workColumn(isDesign: card.isDesign)
+    // Armed auto-merge would land the pull request on an approval while it is
+    // reworked, so it is turned off before the card moves.
+    func sendBack(_ id: PullRequestID, reason: String) -> [RepairAction] {
+        let armed = card.merge[id]?.autoMergeSetOrMerged == true && disarmed[id] == nil
+        let unarm: [RepairAction] =
+            armed ? [.disableAutoMerge(pullRequest: id, reason: reason)] : []
+        return actions + unarm + [.move(from: card.column, to: back, reason: reason, comment: nil)]
+    }
 
     // An approval with a comment sends a design to In Design, and the owner can
     // merge it there. Nothing else here is In Design's.
@@ -254,12 +262,7 @@ func repairs(
 
         let ownFailures = checks.failing.filter { !red.contains($0) }
         if !ownFailures.isEmpty {
-            return actions + [
-                .move(
-                    from: card.column, to: back,
-                    reason: "\(name) fails \(ownFailures.joined(separator: ", "))",
-                    comment: nil)
-            ]
+            return sendBack(id, reason: "\(name) fails \(ownFailures.joined(separator: ", "))")
         }
         let mainFailures = checks.failing.filter { red.contains($0) }
         if !mainFailures.isEmpty {
@@ -269,39 +272,24 @@ func repairs(
         }
 
         if let unanswered = card.unansweredFeedback[id], !unanswered.isEmpty {
-            return actions + [
-                .move(
-                    from: card.column, to: back,
-                    reason: "unanswered owner feedback on \(name): "
-                        + unanswered.joined(separator: " "),
-                    comment: nil)
-            ]
+            return sendBack(
+                id,
+                reason: "unanswered owner feedback on \(name): "
+                    + unanswered.joined(separator: " "))
         }
 
         if let merge = card.merge[id], merge.base != "main" {
             // Its conflict and behind compare it with its parent's branch, which
             // moves whenever the parent is reworked; the parent decides instead.
             if let finding = card.stack[id] {
-                return actions + [
-                    .move(
-                        from: card.column, to: back, reason: "\(name) \(finding.reason)",
-                        comment: nil)
-                ]
+                return sendBack(id, reason: "\(name) \(finding.reason)")
             }
         } else if let merge = card.merge[id] {
             if merge.mergeable == false {
-                return actions + [
-                    .move(
-                        from: card.column, to: back, reason: "\(name) does not merge",
-                        comment: nil)
-                ]
+                return sendBack(id, reason: "\(name) does not merge")
             }
             if merge.mergeableState == "behind" {
-                return actions + [
-                    .move(
-                        from: card.column, to: back, reason: "\(name) is behind main",
-                        comment: nil)
-                ]
+                return sendBack(id, reason: "\(name) is behind main")
             }
         }
 
@@ -322,11 +310,7 @@ func repairs(
                     && (!merge.autoMergeSetOrMerged || disarmed[id] != nil)
                 switch verdict {
                 case .restack(let reason):
-                    return actions + [
-                        .move(
-                            from: card.column, to: back,
-                            reason: "\(name) must restack onto main: \(reason)", comment: nil)
-                    ]
+                    return sendBack(id, reason: "\(name) must restack onto main: \(reason)")
                 case _ where stranded:
                     let why = verdict.map { $0 == .passes ? "" : ": \($0.reason)" } ?? ""
                     return actions + [

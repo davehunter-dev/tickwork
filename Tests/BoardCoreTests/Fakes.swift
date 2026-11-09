@@ -350,6 +350,7 @@ final class FakeSourceControl: SourceControl {
     func disableAutoMerge(_ pullRequest: PullRequestID) throws {
         try write("merge", pullRequest)
         writes.append("disable auto-merge \(pullRequest.reference)")
+        onWrite?("disable auto-merge \(pullRequest.repository)#\(pullRequest.number)")
         merge[pullRequest]?.autoMergeSetOrMerged = false
     }
 

@@ -41,10 +41,10 @@ struct RepairsTests {
 
     func pull(
         mergeable: String = "true", state: String = "blocked", draft: Bool = false,
-        openedBy opener: String = "agent-one"
+        openedBy opener: String = "agent-one", base: String = "main", autoMerge: Bool = false
     ) -> String {
         """
-        {"head": {"sha": "abc123", "ref": "f/7-work"}, "base": {"ref": "main"}, "user": {"login": "\(opener)"}, "mergeable": \(mergeable), "mergeable_state": "\(state)", "draft": \(draft)}
+        {"head": {"sha": "abc123", "ref": "f/7-work"}, "base": {"ref": "\(base)"}, "user": {"login": "\(opener)"}, "mergeable": \(mergeable), "mergeable_state": "\(state)", "draft": \(draft), "auto_merge": \(autoMerge ? "{}" : "null")}
         """
     }
 
@@ -284,6 +284,49 @@ struct RepairsTests {
             timelineJSON: timeline([(26, "open", false, "Closes #7.")]),
             pullJSON: pull(mergeable: "null", state: "unknown"))
         #expect(decide(undecided) == ["ok #7"])
+    }
+
+    // A restack the merge guard finds is disarmed by the guard's own repair; see
+    // `MergeGuardTests`.
+    @Test("Every repair that sends a pull request back turns its armed auto-merge off first")
+    func sendBackUnarms() throws {
+        let timelineJSON = timeline([(31, "open", false, "Closes #7.")])
+        var stacked = try reviewCard(
+            timelineJSON: timelineJSON, pullJSON: pull(base: "f/6-parent", autoMerge: true))
+        stacked.stack[home(31)] = .broken("its parent closed")
+        let cards: [(CardFacts, String)] = [
+            (
+                try reviewCard(
+                    timelineJSON: timelineJSON, pullJSON: pull(autoMerge: true),
+                    checks: checkRuns([("Swift tests", "failure")])),
+                "PR #31 fails Swift tests"
+            ),
+            (
+                try reviewCard(
+                    timelineJSON: timelineJSON, pullJSON: pull(autoMerge: true),
+                    unanswered: ["https://x/pull/31#pullrequestreview-1"]),
+                "unanswered owner feedback on PR #31: https://x/pull/31#pullrequestreview-1"
+            ),
+            (
+                try reviewCard(
+                    timelineJSON: timelineJSON,
+                    pullJSON: pull(mergeable: "false", state: "dirty", autoMerge: true)),
+                "PR #31 does not merge"
+            ),
+            (
+                try reviewCard(
+                    timelineJSON: timelineJSON, pullJSON: pull(state: "behind", autoMerge: true)),
+                "PR #31 is behind main"
+            ),
+            (stacked, "PR #31 has a broken stack: its parent closed"),
+        ]
+        for (card, reason) in cards {
+            #expect(
+                decide(card) == [
+                    "UNARM #7 auto-merge on PR #31 (\(reason))",
+                    "MOVE #7 Human Review → In Progress (\(reason))",
+                ])
+        }
     }
 
     @Test("A draft is reported and never merged")

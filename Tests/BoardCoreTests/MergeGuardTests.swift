@@ -224,6 +224,54 @@ struct MergeGuardTests {
         #expect(result.moves == [.init(issue: 7, to: "In Progress", from: "Human Review")])
     }
 
+    @Test("A pull request sent back to work has its armed auto-merge turned off before the move")
+    func repairUnarmsBeforeSendingBack() throws {
+        let source = FakeSourceControl()
+        let board = Self.agentReviewBoard()
+        var log: [String] = []
+        source.onWrite = { log.append($0) }
+        board.onWrite = { log.append($0) }
+        let result = try repair(source, board: board, state: "behind", autoMerge: true)
+        #expect(
+            result.lines == [
+                "#7 -> In Progress",
+                "UNARM #7 auto-merge on PR #31 (PR #31 is behind main)",
+                "MOVE #7 Agent Review → In Progress (PR #31 is behind main)",
+            ])
+        #expect(
+            log == [
+                "disable auto-merge \(Self.repository)#31", "move #7 Agent Review → In Progress",
+            ])
+    }
+
+    @Test("A pull request sent back to work with auto-merge off makes no disable write")
+    func repairSendsBackUnarmed() throws {
+        let source = FakeSourceControl()
+        let result = try repair(source, state: "behind")
+        #expect(result.moves == [.init(issue: 7, to: "In Progress", from: "Human Review")])
+        #expect(source.writes.isEmpty)
+    }
+
+    @Test("A dry run that would send an armed pull request back writes nothing")
+    func repairDryRunUnarmsNothing() throws {
+        let source = FakeSourceControl()
+        let board = Self.agentReviewBoard()
+        board.linked[7] = [LinkedPullRequest(id: Self.pullRequest, open: true, merged: false)]
+        source.merge[Self.pullRequest] = Self.facts(state: "behind")
+        source.merge[Self.pullRequest]?.autoMergeSetOrMerged = true
+        var lines: [String] = []
+        try repairs(
+            snapshot: board.board, board: board, source: source, apply: false,
+            emit: { lines.append($0) })
+        #expect(
+            lines == [
+                "UNARM #7 auto-merge on PR #31 (PR #31 is behind main)",
+                "MOVE #7 Agent Review → In Progress (PR #31 is behind main)",
+            ])
+        #expect(source.writes.isEmpty)
+        #expect(board.moves.isEmpty)
+    }
+
     @Test("Auto-merge set on a pull request the guard sends back is turned off first")
     func repairUnarmsBeforeRestack() throws {
         let source = FakeSourceControl()
