@@ -41,8 +41,10 @@ line per card, each naming the card: `MOVE`, `REPORT`, `MERGE`, `UNARM`, `HELD`,
 with `--from`, posts the notices and comments the rules call for, removes agent
 claims in `Needs Human` and files a check red on `main`. Without it, it changes
 nothing, which is how to see what a tick would do. It finds each card's pull
-request from the issue's own timeline, so no list is typed by hand and an old
-pull request is not missed.
+request from the issue's own timeline: its cross-references, and the pull
+requests its `PR: <ref>` lines record, read one request each, which is the only
+link a locked issue keeps. No list is typed by hand and an old pull request is
+not missed.
 
 **A card's pull request may live in another repository.** The verb
 reads every one of its facts in that repository. Such a pull request names the

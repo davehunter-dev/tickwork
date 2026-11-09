@@ -9,6 +9,15 @@ next tick. A major entry is one a consumer or an account has to act on.
   coordinated through GitHub. It explains the native-development motivation,
   macOS and Linux use, agent roles, human approval boundaries, and experience
   across Swift, C++, TypeScript and Next.js projects.
+  
+- An issue's pull request is found when the issue is locked. GitHub writes no
+  cross-reference onto a locked issue, so with `lockConversations` on,
+  `finish --pr` rejected every pull request opened after the lock, and the
+  repairs, `feedback`, stacking and the supervisor's watch never saw it. They
+  now also read the `PR: <ref>` lines an agent or the owner comments on the
+  issue, checking each pull request directly on a cross-reference's terms, and
+  `finish --pr` checks the pull request itself. A pull request the owner links
+  by hand on a locked issue needs a `PR:` line too.
 
 - The tree is ready to publish: the release design document,
   which cited this repository's item numbers, is gone; Tickwork's own

@@ -39,6 +39,8 @@ protocol BoardProvider {
     func statusChanges(on issue: Int, since: Date) throws -> [StatusChange]
     /// The pull requests, in any repository, that name the issue as their work.
     func linkedPullRequests(of issue: Int) throws -> [LinkedPullRequest]
+    /// The pull request, read directly, if it names the issue as its work.
+    func linkedPullRequest(_ id: PullRequestID, of issue: Int) throws -> LinkedPullRequest?
 
     func createIssue(_ draft: IssueDraft) throws -> Int
     /// Puts the issue on the board unless it is already there, and answers its

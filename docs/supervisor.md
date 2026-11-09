@@ -293,7 +293,9 @@ one, two or three repositories, half that on average.
   while there, the supervisor resolves its pull requests with the resolver repairs
   use (`linkedPullRequests`, one timeline request), so a PR in any repository is
   found. It keeps the open ones, each with the `updated_at` the same timeline
-  response carries, as its baseline. Each interval reconciliation re-resolves every
+  response carries, as its baseline. One only a `PR:` line records is read
+  directly, one request, for its state and `updated_at`. Each interval
+  reconciliation re-resolves every
   `Human Review` card, 7 requests today, which catches a PR opened later. A card
   leaving `Human Review` drops its PRs, and a repository with none left drops
   its list. The resolver comes from the supervisor's revision, not the

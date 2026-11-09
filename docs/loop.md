@@ -271,6 +271,15 @@ Engineer, not only the first, so "post it once" would have been a thing to
 remember rather than a thing that is true. Whether this pass opened the pull
 request is something the role knows without looking.
 
+The line is also how the loop finds the pull request when GitHub hasn't linked
+it. GitHub writes no cross-reference onto a locked issue, so with
+`lockConversations` on the timeline never shows a pull request opened after the
+lock. The lookups read each `PR:` line an agent or the owner wrote and check
+that pull request directly, on the same terms as a cross-reference: an agent
+opened it and its body names the issue. `finish --pr` checks the pull request
+itself rather than the timeline. A pull request the owner links by hand on a
+locked issue needs its `PR:` line too.
+
 Assignment is the other half and belongs at the later moment, because it is a
 claim about whose turn it is rather than about where something lives. When the
 Reviewer passes an item, it assigns the pull request to the owner and requests
