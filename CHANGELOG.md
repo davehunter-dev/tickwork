@@ -9,6 +9,13 @@ next tick. A major entry is one a consumer or an account has to act on.
   supervisor, which launches Claude Code only when a board has work, and keeps
   `/loop /next-task` for running it from an interactive session.
 
+- A repair that sends a pull request back for work turns off its GitHub
+  auto-merge first, if it is set, so an approval can't land it while it is being
+  reworked. Before, only a pull request the merge guard stopped was disarmed; one
+  sent back for a failing check, owner feedback, a conflict, being behind `main`
+  or a broken stack kept auto-merge armed. The repairs print `UNARM` before the
+  `MOVE`, and make no extra write when auto-merge is off.
+
 - The README now introduces Tickwork as self-hosted, multi-agent development
   coordinated through GitHub. It explains the native-development motivation,
   macOS and Linux use, agent roles, human approval boundaries, and experience

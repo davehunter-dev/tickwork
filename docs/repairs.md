@@ -96,6 +96,13 @@ reads a fresh board and decides again.
   decomposition, and that is engineering. This one routed like that without the
   reason, for no better cause than that a red check reads like code.
 
+  **Every repair that sends a pull request back for work disarms it first.** A
+  failing check, owner feedback, a conflict, being behind `main`, and a restack or
+  broken stack each print `UNARM #N auto-merge on PR <ref> (<reason>)` before the
+  `MOVE` when GitHub's auto-merge is set on it, and `--apply` runs
+  `gh pr merge <PR> --disable-auto` before the move, so an approval can't land it
+  while it is reworked. With auto-merge off there is no `UNARM` and no extra write.
+
   Read the checks over REST rather than with `gh pr view --json`: one call to
   `gh api repos/<repository>/pulls/<PR>` gives both the head SHA and
   whether it merges, and

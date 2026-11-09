@@ -844,9 +844,10 @@ stage `config` when the repository doesn't allow auto-merge.
 approves. The orchestrator's `MERGE … is clean` repair stays for loops without
 it. Neither path sets auto-merge on a pull request the merge guard stops: the
 owner is asked to review it, and the merge repair holds it or sends it back.
-Auto-merge set before the guard stopped it is turned off by the repairs, which
-hand an agent-approved card left in `Agent Review` with auto-merge off to the
-owner in the same way, on that pass or once a claim on it is released.
+Auto-merge set before the guard stopped it, or on a pull request a repair sends
+back to work, is turned off by the repairs, which hand an agent-approved card
+left in `Agent Review` with auto-merge off to the owner in the same way, on that
+pass or once a claim on it is released.
 
 ## Starting it
 
