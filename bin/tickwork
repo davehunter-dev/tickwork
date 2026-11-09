@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+# The tick's tool: one revision's board verbs and instructions.
+#
+#   sh <entry>/bin/tickwork update
+#   sh <entry>/bin/tickwork next-task
+#   sh <entry>/bin/tickwork instructions [next-task|reviewer|engineer|designer]
+#   sh <entry>/bin/tickwork check-loop [file]
+#   sh <entry>/bin/tickwork <board verb> ...      see `-h`
+#
+# install.sh copies this file into ~/.cache/tickwork/tool/ beside the build of
+# the revision it installed. So everything reached through it, instructions
+# included, is that one revision. It is not meant to run from a working tree,
+# where there is no build beside it.
+
+set -eu
+
+here=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+entry=${here%/bin}
+clone=$HOME/.cache/tickwork/tickwork.git
+
+not_installed() {
+    printf '%s\n' "tickwork: Tickwork isn't installed for this account; run the install lines" \
+        "under \"What a consumer's accounts need\" in Tickwork's docs/loop.md" >&2
+}
+
+# Fetches main into the account's clone and runs that main's install.sh, even
+# when the fetch fails, so a working tool/ is never left for a failed step.
+update() {
+    [ -d "$clone" ] || {
+        not_installed
+        return 1
+    }
+    status=0
+    git -C "$clone" fetch -q origin '+refs/heads/main:refs/heads/main' || {
+        printf 'tickwork: fetching Tickwork failed; installing the last fetched main\n' >&2
+        status=1
+    }
+    git -C "$clone" show main:install.sh | sh || status=1
+    return "$status"
+}
+
+case ${1:-} in
+    update)
+        update
+        exit
+        ;;
+    next-task)
+        # After an update, $entry by path is the newly installed tool. Only this
+        # code is the wrapper the tick started, which sh keeps reading from its
+        # open file.
+        failed=
+        update || failed=1
+        [ -x "$entry/bin/board" ] || {
+            not_installed
+            exit 1
+        }
+        printf "This tick's tool: sh ~/.cache/tickwork/tool/bin/tickwork\n"
+        printf "This tick's revision: %s of Tickwork's main\n" "$(cat -- "$entry/revision")"
+        [ -z "$failed" ] ||
+            printf 'The update failed, so this is the tool installed before it; its error is above.\n'
+        echo
+        exec cat -- "$entry/instructions/next-task.md"
+        ;;
+esac
+
+[ -x "$here/board" ] || {
+    printf 'tickwork: no build beside %s\n' "$0" >&2
+    not_installed
+    exit 1
+}
+
+case ${1:-} in
+    instructions)
+        name=${2:-next-task}
+        case $name in
+            next-task | reviewer | engineer | designer) ;;
+            *)
+                printf 'tickwork: no instructions called %s\n' "$name" >&2
+                exit 2
+                ;;
+        esac
+        exec cat -- "$entry/instructions/$name.md"
+        ;;
+    check-loop)
+        shift
+        exec "$here/check-loop" "$@"
+        ;;
+    *)
+        exec "$here/board" "$@"
+        ;;
+esac

@@ -1,0 +1,19 @@
+{
+  "repository": "example-org/example",
+  "project": {
+    "owner": "example-org",
+    "number": 1
+  },
+  "owner": "example-owner",
+  "mainRedLabels": ["area:build"],
+  "agents": [
+    {
+      "login": "agent-one",
+      "roles": ["reviewer", "engineer", "designer"]
+    },
+    {
+      "login": "agent-two",
+      "roles": ["orchestrator", "reviewer", "engineer"]
+    }
+  ]
+}

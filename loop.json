@@ -1,0 +1,20 @@
+{
+  "repository": "davehunter-dev/tickwork",
+  "project": {
+    "owner": "davehunter-dev",
+    "number": 6
+  },
+  "owner": "davehunter",
+  "mainRedLabels": ["area:build"],
+  "lockConversations": true,
+  "agents": [
+    {
+      "login": "bob-the-minion-dhdev",
+      "roles": ["reviewer", "engineer", "designer"]
+    },
+    {
+      "login": "dave-the-minion-dhdev",
+      "roles": ["orchestrator", "reviewer", "engineer"]
+    }
+  ]
+}

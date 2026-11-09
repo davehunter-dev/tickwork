@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# The same four checks on both platforms. Linux is claimed as supported only
+# while its job is green.
+jobs:
+  macos:
+    name: macOS
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Swift version
+        run: swift --version
+      - name: Unit tests
+        run: swift test
+      - name: The installer and its wrapper
+        run: sh Tests/wrapper.sh
+      - name: check-loop against the sample arrangement
+        run: sh Tests/check-loop.sh
+      - name: No project names in the tree
+        run: sh Tests/names.sh
+
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    container: swift:6.2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Unit tests
+        run: swift test
+      - name: The installer and its wrapper
+        run: sh Tests/wrapper.sh
+      - name: check-loop against the sample arrangement
+        run: sh Tests/check-loop.sh
+      - name: No project names in the tree
+        run: sh Tests/names.sh
