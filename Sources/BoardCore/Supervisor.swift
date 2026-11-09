@@ -1085,7 +1085,17 @@ final class Supervisor {
                 let json = try github.timeline(of: card.number, in: repository.name)
                 repository.watched[card.number] = try watchedPullRequests(
                     issue: card.number, timelineJSON: json, home: repository.name,
-                    agents: Set(repository.configuration.agents.map(\.login)))
+                    agents: Set(repository.configuration.agents.map(\.login)),
+                    owner: repository.configuration.owner
+                ) { id in
+                    let path = "repos/\(id.repository)/pulls/\(id.number)"
+                    let response = try github.get(path, etag: nil)
+                    noteRate(response)
+                    guard response.status == 200 else {
+                        throw BoardError("HTTP \(response.status) for \(path)")
+                    }
+                    return response.body
+                }
                 repository.resolved[card.number] = card.updatedAt
                 if repository.watchFailed.removeValue(forKey: card.number) != nil {
                     emit([
@@ -1591,9 +1601,11 @@ func nextLink(_ header: String?) -> String? {
 }
 
 /// The open pull requests the repairs' resolver finds for an issue, each with
-/// the `updated_at` the same timeline carries as its baseline.
+/// the `updated_at` the same timeline carries as its baseline. One only a `PR:`
+/// line records is read with `fetch`, which answers its REST body.
 func watchedPullRequests(
-    issue: Int, timelineJSON json: String, home: String, agents: Set<String>
+    issue: Int, timelineJSON json: String, home: String, agents: Set<String>, owner: String,
+    fetch: (PullRequestID) throws -> String
 ) throws
     -> [WatchedPullRequest]
 {
@@ -1606,11 +1618,23 @@ func watchedPullRequests(
         else { continue }
         updated[PullRequestID(repository: repository, number: number)] = try date(text)
     }
-    return try linkedPullRequests(issue: issue, timelineJSON: json, home: home, agents: agents)
-        .filter(\.open)
-        .compactMap { pull in
-            updated[pull.id].map { WatchedPullRequest(id: pull.id, updatedAt: $0) }
-        }
+    let referenced = try linkedPullRequests(
+        issue: issue, timelineJSON: json, home: home, agents: agents)
+    let known = Set(referenced.map(\.id))
+    var watched = referenced.filter(\.open).compactMap { pull in
+        updated[pull.id].map { WatchedPullRequest(id: pull.id, updatedAt: $0) }
+    }
+    let recorded = try recordedPullRequests(
+        timelineJSON: json, home: home, authors: agents.union([owner]))
+    for id in recorded where !known.contains(id) {
+        guard
+            let read = try pullRequestLink(
+                issue: issue, pullJSON: fetch(id), home: home, agents: agents),
+            read.link.open
+        else { continue }
+        watched.append(WatchedPullRequest(id: read.link.id, updatedAt: read.updatedAt))
+    }
+    return watched
 }
 
 /// A `gh api -i` answer: status line, headers, then the body. `gh` exits non-zero

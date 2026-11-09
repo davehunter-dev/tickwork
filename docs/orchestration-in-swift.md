@@ -233,7 +233,8 @@ reason.
 - the token's issue repository is `loop.json`'s `repository`;
 - the outcome is one the token's role and task accept, which is the list the
   assignment printed as `outcomes`;
-- `--pr` names a pull request that links the issue;
+- `--pr` names a pull request that links the issue, read from the pull request
+  itself: an agent opened it and its body names the issue;
 - each `--answering` URL is outstanding feedback;
 - `blocked` names at least one open issue or pull request.
 

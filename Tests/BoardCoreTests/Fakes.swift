@@ -153,6 +153,10 @@ final class FakeBoard: BoardProvider {
         return linked[issue] ?? []
     }
 
+    func linkedPullRequest(_ id: PullRequestID, of issue: Int) throws -> LinkedPullRequest? {
+        try linkedPullRequests(of: issue).first { $0.id == id }
+    }
+
     func createIssue(_ draft: IssueDraft) throws -> Int {
         created.append(draft)
         onWrite?("create \(draft.title)")

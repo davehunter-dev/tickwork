@@ -270,9 +270,22 @@ final class GitHubBoard: BoardProvider {
     }
 
     /// Matched by body, so a pull request of any age is found, unlike a search of
-    /// recent ones, and in any repository.
+    /// recent ones, and in any repository. A locked issue gets no cross-reference,
+    /// so the pull requests its `PR:` lines record are read too, one request each
+    /// beyond the timeline.
     func linkedPullRequests(of issue: Int) throws -> [LinkedPullRequest] {
-        try BoardCore.linkedPullRequests(issue: issue, timelineJSON: timeline(issue))
+        let json = try timeline(issue)
+        let referenced = try BoardCore.linkedPullRequests(issue: issue, timelineJSON: json)
+        let known = Set(referenced.map(\.id))
+        return try referenced
+            + recordedPullRequests(timelineJSON: json).filter { !known.contains($0) }
+            .compactMap { try linkedPullRequest($0, of: issue) }
+    }
+
+    func linkedPullRequest(_ id: PullRequestID, of issue: Int) throws -> LinkedPullRequest? {
+        try pullRequestLink(
+            issue: issue, pullJSON: run(["api", "repos/\(id.repository)/pulls/\(id.number)"]))?
+            .link
     }
 
     /// Every page of an issue's timeline, `--slurp`ed for `jsonArray`.
