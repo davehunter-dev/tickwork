@@ -381,6 +381,20 @@ struct FinishTests {
         #expect(world.log.contains("move #7 In Progress → Agent Review"))
     }
 
+    @Test("A pull request the issue's timeline doesn't hold, as a locked issue's, still submits")
+    func submitsOnADirectRead() {
+        let (request, column) = Self.request(.submitted)
+        let world = World(column: column)
+        world.board.linked[7] = []
+        world.board.direct[Self.pullRequest] = LinkedPullRequest(
+            id: Self.pullRequest, open: true, merged: false)
+        guard case .finished = world.finish(request) else {
+            Issue.record("expected finished")
+            return
+        }
+        #expect(world.log.contains("move #7 In Progress → Agent Review"))
+    }
+
     // MARK: Rejections
 
     @Test("Each failed check rejects with nothing written")

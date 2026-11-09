@@ -22,15 +22,35 @@ import Foundation
 /// A pull request, which may live in another repository than the board's issues:
 /// a project may keep its pull requests in a repository of their own.
 struct PullRequestID: Hashable {
-    /// `owner/name`.
+    /// `owner/name`, in whatever case the source wrote it. GitHub matches it
+    /// without case, so equality does too: a `PR:` line typed by hand names the
+    /// same pull request as GitHub's canonical `full_name`.
     let repository: String
     let number: Int
+
+    static func == (left: PullRequestID, right: PullRequestID) -> Bool {
+        left.number == right.number && left.repository.lowercased() == right.repository.lowercased()
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(repository.lowercased())
+        hasher.combine(number)
+    }
 
     /// How a line names it: `#N` in the board's repository, `owner/name#N`
     /// anywhere else.
     var reference: String {
         repository.lowercased() == Coordinates.repository.lowercased()
             ? "#\(number)" : "\(repository)#\(number)"
+    }
+}
+
+extension PullRequestID {
+    /// Reads `owner/name#N`, or `#N` in `home`.
+    init?(reference text: String, home: String) {
+        let parts = text.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
+        guard parts.count == 2, let number = Int(parts[1]) else { return nil }
+        self.init(repository: parts[0].isEmpty ? home : String(parts[0]), number: number)
     }
 }
 
@@ -469,6 +489,83 @@ func linkedPullRequests(
         return LinkedPullRequest(
             id: id, open: source["state"] as? String == "open", merged: pull["merged_at"] is String)
     }
+}
+
+/// The line `finish --new` comments on an issue, and the owner may write by hand,
+/// to record a pull request as the issue's work. The lookups read it because
+/// GitHub writes no cross-reference onto a locked issue.
+let recordedPullRequestPrefix = "PR: "
+
+/// Whose `PR:` lines count: the agents', and the owner's.
+func recordingLogins() -> Set<String> {
+    loopLogins().union([Coordinates.ownerLogin])
+}
+
+/// The pull requests an issue's timeline records with a `PR: <ref>` line in a
+/// comment by one of `authors`, oldest first. A comment carries no state, so
+/// each is still to be read and judged by `pullRequestLink`.
+func recordedPullRequests(
+    timelineJSON json: String, home: String = Coordinates.repository,
+    authors: Set<String> = recordingLogins()
+) throws -> [PullRequestID] {
+    var found: [PullRequestID] = []
+    for event in try jsonArray(json) where event["event"] as? String == "commented" {
+        guard let author = (event["user"] as? [String: Any])?["login"] as? String,
+            authors.contains(author), let body = event["body"] as? String
+        else { continue }
+        for line in body.split(separator: "\n") {
+            let line = line.trimmingCharacters(in: .whitespaces)
+            guard line.hasPrefix(recordedPullRequestPrefix),
+                let id = PullRequestID(
+                    reference: String(line.dropFirst(recordedPullRequestPrefix.count)), home: home),
+                !found.contains(id)
+            else { continue }
+            found.append(id)
+        }
+    }
+    return found
+}
+
+/// The fields of a pull request that decide whether it links an issue.
+private struct PullRequestLinkFields: Decodable {
+    struct User: Decodable {
+        let login: String
+    }
+    struct Base: Decodable {
+        struct Repository: Decodable {
+            let full_name: String
+        }
+        let repo: Repository
+    }
+    let number: Int
+    let state: String
+    let merged_at: String?
+    let updated_at: String
+    let body: String?
+    let user: User
+    let base: Base
+}
+
+/// A pull request read directly, linking `issue` on a cross-reference's terms:
+/// one of `agents` opened it and its body names the issue. Nil when it doesn't.
+func pullRequestLink(
+    issue: Int, pullJSON json: String, home: String = Coordinates.repository,
+    agents: Set<String> = loopLogins()
+) throws -> (link: LinkedPullRequest, updatedAt: Date)? {
+    let pull: PullRequestLinkFields
+    do {
+        pull = try JSONDecoder().decode(PullRequestLinkFields.self, from: Data(json.utf8))
+    } catch {
+        throw BoardError("a pull request came back as something this could not read: \(error)")
+    }
+    let repository = pull.base.repo.full_name
+    guard agents.contains(pull.user.login),
+        linksIssue(issue, body: pull.body ?? "", from: repository, home: home)
+    else { return nil }
+    let link = LinkedPullRequest(
+        id: PullRequestID(repository: repository, number: pull.number),
+        open: pull.state == "open", merged: pull.merged_at != nil)
+    return (link, try date(pull.updated_at))
 }
 
 /// The fields of a pull request that the merge rules read, decoded by type.

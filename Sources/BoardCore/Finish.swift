@@ -448,8 +448,9 @@ private func inputProblem(_ request: FinishRequest, board: BoardProvider, source
     throws -> String?
 {
     if let id = request.pullRequest {
-        let linked = try board.linkedPullRequests(of: request.token.issue).map(\.id)
-        guard linked.contains(id) else {
+        // Read directly: the timeline holds no cross-reference to a locked issue,
+        // and the `PR:` line that would record one is this finish's to write.
+        guard try board.linkedPullRequest(id, of: request.token.issue) != nil else {
             return "\(id.repository)#\(id.number) does not link #\(request.token.issue)"
         }
         // A stacked start opened against `main` while its parent is open is what

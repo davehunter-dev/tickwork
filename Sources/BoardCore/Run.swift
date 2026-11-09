@@ -398,10 +398,6 @@ private func issueReference(_ text: String) -> Int {
 
 /// `owner/name#N`, or `#N` and `N` in the board's repository.
 private func pullRequestReference(_ text: String) -> PullRequestID {
-    let parts = text.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)
-    guard parts.count == 2, let number = Int(parts[1]) else {
-        return PullRequestID(repository: Coordinates.repository, number: issueReference(text))
-    }
-    return PullRequestID(
-        repository: parts[0].isEmpty ? Coordinates.repository : String(parts[0]), number: number)
+    PullRequestID(reference: text, home: Coordinates.repository)
+        ?? PullRequestID(repository: Coordinates.repository, number: issueReference(text))
 }

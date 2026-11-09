@@ -1447,7 +1447,8 @@ struct SupervisorTests {
         ])
         let watched = try watchedPullRequests(
             issue: 5, timelineJSON: json, home: "example-org/a",
-            agents: ["agent-one"])
+            agents: ["agent-one"], owner: "example-owner"
+        ) { _ in throw BoardError("no pull request is read") }
         #expect(
             watched == [
                 WatchedPullRequest(
@@ -1457,7 +1458,7 @@ struct SupervisorTests {
         #expect(
             try watchedPullRequests(
                 issue: 6, timelineJSON: json, home: "example-org/a",
-                agents: ["agent-one"]
-            ).isEmpty)
+                agents: ["agent-one"], owner: "example-owner"
+            ) { _ in throw BoardError("no pull request is read") }.isEmpty)
     }
 }
